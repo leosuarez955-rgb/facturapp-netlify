@@ -1,7 +1,9 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { Bot, Building2, CheckCircle2, CircleAlert, LogOut, MessageCircle, Send, ShieldCheck, Sparkles, UserRound, LoaderCircle, FileText } from "lucide-react";
 import { configReady, supabase } from "./lib/supabase";
-import { Emisor, RespuestaChat, enviarMensaje, listarEmisores, numeroARS, textoSeguro } from "./lib/chat";
+import { enviarMensaje, listarEmisores, numeroARS, textoSeguro } from "./lib/chat";
+import type { Emisor, RespuestaChat } from "./lib/chat";
 
 type ChatLine = { id: string; role: "user" | "assistant" | "error"; text: string; response?: RespuestaChat };
 type AuthMode = "login" | "signup" | "reset";
