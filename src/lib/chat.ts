@@ -1,6 +1,8 @@
 import { supabase } from "./supabase";
 
-export const CHAT_API_URL = "https://vjotksbiyfeuwgntxsww.supabase.co/functions/v1/chat-api";
+const CHAT_API_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined)
+  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-api`
+  : "https://vjotksbiyfeuwgntxsww.supabase.co/functions/v1/chat-api";
 
 export type Emisor = {
   id: string;
@@ -40,10 +42,28 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function describeApiError(response: Response, payload: unknown): string {
+  const record = asRecord(payload);
+  const message = record && typeof record.error === "string" ? record.error : "";
+  if (response.status === 401) return "Tu sesión venció. Volvé a iniciar sesión.";
+  if (response.status === 403) {
+    return message || "El dominio actual no está autorizado para hablar con la Edge Function de Supabase.";
+  }
+  if (response.status === 429) {
+    return message || "Llegaste al límite temporal. Esperá un minuto.";
+  }
+  if (response.status >= 500) {
+    return message || "El servicio de facturación está temporalmente caído.";
+  }
+  return message || `El servicio respondió con un error (${response.status || "respuesta inválida"}).`;
+}
+
 async function post(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !session?.access_token) throw new Error("Tu sesión venció. Volvé a iniciar sesión.");
+
   let response: Response;
+
   try {
     response = await fetch(CHAT_API_URL, {
       method: "POST",
@@ -61,15 +81,21 @@ async function post(body: Record<string, unknown>): Promise<Record<string, unkno
   }
 
   let payload: unknown;
-  try { payload = await response.json(); } catch { payload = null; }
-  const record = asRecord(payload);
-  if (!response.ok || !record || typeof record.error === "string") {
-    const message = record && typeof record.error === "string" ? record.error : "";
-    if (response.status === 401) throw new Error("Tu sesión venció. Volvé a iniciar sesión.");
-    if (response.status === 403) throw new Error(message || "El sitio no está autorizado para comunicarse con el servicio.");
-    if (response.status === 429) throw new Error(message || "Llegaste al límite temporal. Esperá un minuto.");
-    throw new Error(message || `El servicio respondió con un error (${response.status || "respuesta inválida"}).`);
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
   }
+
+  if (!response.ok) {
+    throw new Error(describeApiError(response, payload));
+  }
+
+  const record = asRecord(payload);
+  if (!record) {
+    throw new Error("El servicio respondió con una estructura inválida.");
+  }
+
   return record;
 }
 
