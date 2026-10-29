@@ -82,12 +82,13 @@ export async function listarEmisores(): Promise<Emisor[]> {
   });
 }
 
-export async function enviarMensaje(emisorId: string, mensaje: string, conversacionId?: string): Promise<RespuestaChat> {
+export async function enviarMensaje(emisorId: string, mensaje: string, conversacionId?: string, nuevaConversacion = false): Promise<RespuestaChat> {
   const data = await post({
     action: "mensaje",
     emisor_id: emisorId,
     mensaje,
-    ...(conversacionId ? { conversacion_id: conversacionId } : {})
+    ...(conversacionId ? { conversacion_id: conversacionId } : {}),
+    ...(nuevaConversacion ? { nueva_conversacion: true } : {})
   });
   return data as RespuestaChat;
 }
