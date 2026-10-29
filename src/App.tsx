@@ -72,6 +72,7 @@ function App() {
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [draft, setDraft] = useState("");
   const [conversationId, setConversationId] = useState<string>();
+  const [newConversation, setNewConversation] = useState(true);
   const [loadingEmisores, setLoadingEmisores] = useState(false);
   const [sending, setSending] = useState(false);
   const [screenError, setScreenError] = useState("");
@@ -112,8 +113,9 @@ function App() {
     const userLine: ChatLine = { id: crypto.randomUUID(), role: "user", text: message };
     setLines(prev => [...prev, userLine]);
     try {
-      const result = await enviarMensaje(emisorId, message, conversationId);
+      const result = await enviarMensaje(emisorId, message, newConversation ? undefined : conversationId, newConversation);
       if (result.conversacion_id) setConversationId(result.conversacion_id);
+      setNewConversation(false);
       const parsed = result.resultado;
       const assistantText = textoSeguro(parsed?.mensaje_para_usuario, "Recibí la respuesta, pero no contiene un mensaje legible.");
       setLines(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", text: assistantText, response: result }]);
@@ -122,7 +124,7 @@ function App() {
     } finally { setSending(false); }
   }
 
-  async function logout() { await supabase.auth.signOut(); setLines([]); setConversationId(undefined); }
+  async function logout() { await supabase.auth.signOut(); setLines([]); setDraft(""); setConversationId(undefined); setNewConversation(true); setScreenError(""); }
 
   if (!sessionReady) return <div className="loading-screen"><LoaderCircle className="spin" size={28}/> Cargando Facturapp…</div>;
   if (!session) return <AuthScreen />;
@@ -137,12 +139,12 @@ function App() {
       <aside className="sidebar">
         <div className="side-heading"><Building2 size={18}/><span>Emisor</span></div>
         {loadingEmisores ? <div className="skeleton"><span/><span/></div> :
-          <select value={emisorId} onChange={e => { setEmisorId(e.target.value); setLines([]); setConversationId(undefined); }} disabled={!emisores.length} aria-label="Seleccionar emisor">
+          <select value={emisorId} onChange={e => { setEmisorId(e.target.value); setLines([]); setDraft(""); setConversationId(undefined); setNewConversation(true); setScreenError(""); }} disabled={!emisores.length} aria-label="Seleccionar emisor">
             {emisores.length ? emisores.map(e => <option key={e.id} value={e.id}>{e.razon_social || "Emisor"}{e.cuit ? ` · ${e.cuit}` : ""}</option>) : <option value="">Sin emisores disponibles</option>}
           </select>}
         {currentEmisor && <div className="issuer-card"><span className="issuer-label">CUIT</span><strong>{currentEmisor.cuit || "No informado"}</strong><span className="issuer-label">CONDICIÓN IVA</span><strong>{currentEmisor.condicion_iva || "No informada"}</strong><span className="issuer-label">PUNTO DE VENTA</span><strong>{currentEmisor.punto_venta ?? "No informado"}</strong></div>}
         <div className="side-tip"><ShieldCheck size={17}/><p>Los emisores se consultan con tu sesión y solo se muestran los que pertenecen a tu cuenta.</p></div>
-        <button className="outline-btn" onClick={() => { setLines([]); setConversationId(undefined); }}>Nueva conversación</button>
+        <button className="outline-btn" onClick={() => { setLines([]); setDraft(""); setConversationId(undefined); setNewConversation(true); setScreenError(""); }}>Nueva conversación</button>
       </aside>
       <section className="chat-panel">
         <div className="chat-heading"><div className="heading-icon"><MessageCircle size={20}/></div><div><h2>Asistente de facturación</h2><p>Describí la operación que necesitás preparar.</p></div><span className="status-pill"><span className="dot"/> En línea</span></div>
